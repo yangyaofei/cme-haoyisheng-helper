@@ -4,18 +4,20 @@
 // @version      1.1.2
 // @description  好医生继续医学教育视频一键看完(含北京市继续医学教育必修课培训), 并且支持考试自动完成
 // @author       limkim
-// @match        http://cme.haoyisheng.com/cme/polyv.jsp*
-// @match        http://bjsqypx.haoyisheng.com/qypx/bj/polyv.jsp*
+// @match        https://cme.haoyisheng.com/cme/polyv.jsp*
+// @match        https://bjsqypx.haoyisheng.com/qypx/bj/polyv.jsp*
+// @match        https://bjsqypx.haoyisheng.com/qypx/bj/cc.jsp
 // @match        https://www.cmechina.net/cme/polyv.jsp*
 // @match        https://www.cmechina.net/cme/study2.jsp*
-// @match        http://cme.haoyisheng.com/cme/study2.jsp*
-// @match        http://cme.haoyisheng.com/cme/exam.jsp*
-// @match        http://cme.haoyisheng.com/cme/examQuizFail.jsp*
+// @match        https://cme.haoyisheng.com/cme/study2.jsp*
+// @match        https://cme.haoyisheng.com/cme/exam.jsp*
+// @match        https://cme.haoyisheng.com/cme/examQuizFail.jsp*
 // @match        https://www.cmechina.net/cme/exam.jsp*
 // @match        https://www.cmechina.net/cme/examQuizFail.jsp*
+// @match        https://*.haoyisheng.com/*
+
 // @license MIT
 
-// @icon         https://dev.limkim.xyz/favicon.ico
 // @run-at       document-end
 // @grant        unsafeWindow
 // @grant        GM_addStyle
@@ -36,7 +38,7 @@
         const answerObject = localStorage.getItem('right_answer_obj') || '{}';
         return JSON.parse(answerObject);
     };
-    const buttonCssText = 'position: absolute;z-index: 99999;top: -40px;right: 0;padding:10px;cursor:pointer;background-color: #3087d9;color: #fff;box-shadow: 0px 0px 12px rgba(0, 0, 0, .12);';
+    const buttonCssText = 'position: absolute;z-index: 99999;right: 0;padding:10px;cursor:pointer;background-color: #3087d9;color: #fff;box-shadow: 0px 0px 12px rgba(0, 0, 0, .12);';
     // 考试结果页面进行遍历, 得到正确答案
     if (window.location.pathname.includes('examQuizFail')) {
         // 获取下一个选项
@@ -131,8 +133,12 @@
         return;
     }
     // 视频跳过
-    setTimeout(() => {
+
+    const create = () => {
         const video = document.querySelector('.pv-video') || document.querySelector('video');
+        if (video == null){
+            return;
+        }
         const parent = video.parentElement;
         const videoSkipButton = document.createElement('button');
         const selecterLabel = document.createElement('label');
@@ -199,6 +205,7 @@
         }
 
         checkboxContainer.append(examCheckboxLabel, examCheckbox, videoCheckboxLabel, videoCheckbox, selecterLabel, playRateSelecter);
+        //document.querySelector("video-box").append(checkboxContainer, videoSkipButton);
         parent.append(checkboxContainer, videoSkipButton);
 
         if (localStorage.getItem('script_auto_skip') === 'true') {
@@ -217,5 +224,9 @@
             playRateSelecter.value = '10';
             video.playbackRate = 10;
         }
-    }, 1000);
+    };
+    const start = document.createElement('button')
+    start.innerText = 'Grab Video';
+    start.addEventListener('click', create);
+    document.querySelector("div").prepend(start)
 })();
