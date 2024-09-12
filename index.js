@@ -134,12 +134,18 @@
     }
     // 视频跳过
 
+    const neww = () => {
+            playEnd()
+    }
     const create = () => {
+
         const video = document.querySelector('.pv-video') || document.querySelector('video');
         if (video == null){
             return;
         }
-        const parent = video.parentElement;
+        // console.log(parent)
+        // const parent = video.parentElement;
+        const parent = document.querySelector('.main');
         const videoSkipButton = document.createElement('button');
         const selecterLabel = document.createElement('label');
         const playRateSelecter = document.createElement('select');
@@ -197,16 +203,16 @@
         if (document.querySelector('.content .h5')) {
             document.querySelector('.content .h5').style.marginBottom = '50px';
             checkboxContainer.style.top = '-45px';
-            videoSkipButton.style.top = '-45px';
+            videoSkipButton.style.top = '-145px';
             videoSkipButton.style.border = 'none';
         }
         if (document.querySelector('.ccH5playerBox')) {
             document.querySelector('.ccH5playerBox').style.overflow = 'visible';
         }
 
-        checkboxContainer.append(examCheckboxLabel, examCheckbox, videoCheckboxLabel, videoCheckbox, selecterLabel, playRateSelecter);
+        checkboxContainer.append(videoSkipButton) //, examCheckboxLabel, examCheckbox, videoCheckboxLabel, videoCheckbox, selecterLabel, playRateSelecter);
         //document.querySelector("video-box").append(checkboxContainer, videoSkipButton);
-        parent.append(checkboxContainer, videoSkipButton);
+        parent.append(checkboxContainer);
 
         if (localStorage.getItem('script_auto_skip') === 'true') {
             videoCheckbox.checked = true;
@@ -225,8 +231,15 @@
             video.playbackRate = 10;
         }
     };
-    const start = document.createElement('button')
-    start.innerText = 'Grab Video';
-    start.addEventListener('click', create);
-    document.querySelector("div").prepend(start)
+    // alert("AAA!")
+    setTimeout(() => {
+        const start = document.createElement('button')
+        start.innerText = 'Grab Video';
+        // start.addEventListener('click', create);
+        start.addEventListener('click', neww);
+
+        document.querySelector("div").prepend(start)
+
+    }, 2000)
+
 })();
