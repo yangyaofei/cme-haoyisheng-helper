@@ -38,69 +38,211 @@
         const answerObject = localStorage.getItem('right_answer_obj') || '{}';
         return JSON.parse(answerObject);
     };
+    
+    // 获取已尝试答案的对象
+    const getTriedAnswersObject = () => {
+        const triedAnswers = localStorage.getItem('tried_answers_obj') || '{}';
+        return JSON.parse(triedAnswers);
+    };
+    
+    // 保存已尝试答案的对象
+    const saveTriedAnswersObject = (triedAnswers) => {
+        localStorage.setItem('tried_answers_obj', JSON.stringify(triedAnswers));
+    };
     const buttonCssText = 'position: absolute;z-index: 99999;right: 0;padding:10px;cursor:pointer;background-color: #3087d9;color: #fff;box-shadow: 0px 0px 12px rgba(0, 0, 0, .12);';
     // 考试结果页面进行遍历, 得到正确答案
-    if (window.location.pathname.includes('examQuizFail')) {
-        // 获取下一个选项
-        const getNextChoice = str => {
-            const code = str.charCodeAt(0) + 1;
-            if (code === 70) {
-                alert('全部遍历但未找到正确答案, 请确定是使用脚本按钮开始答题!');
-                return 'A';
+    if (window.location.pathname.includes('examQuizFail') || document.querySelector('.cuoti')) {
+        console.log('检测到考试结果页面，开始答案遍历...');
+        
+        // 获取下一个未尝试的选项
+        const getNextUntriedChoice = (currentChoice, triedChoices, questionText) => {
+            const allChoices = ['A', 'B', 'C', 'D', 'E'];
+            let currentIndex = allChoices.indexOf(currentChoice);
+            
+            // 找到下一个未尝试的选项
+            for (let i = 1; i <= allChoices.length; i++) {
+                const nextIndex = (currentIndex + i) % allChoices.length;
+                const nextChoice = allChoices[nextIndex];
+                
+                if (!triedChoices.includes(nextChoice)) {
+                    console.log('题目:', questionText, '当前选项:', currentChoice, '下一个未尝试选项:', nextChoice);
+                    return nextChoice;
+                }
             }
-            return String.fromCharCode(code);
+            
+            console.log('所有选项都已尝试，重置为A');
+            return 'A';
         };
+        
         // 循环多选选项
         const getNextMultipleChoice = str => {
             const dic = ['ABCDE', 'ABCD', 'ABD', 'ABC', 'AB', 'A'];
             const index = dic.indexOf(str);
             if (index === 5) {
-                alert('全部遍历但未找到正确答案, 请确定是使用脚本按钮开始答题!');
+                console.log('所有多选组合遍历完毕，重置为ABCDE');
                 return 'ABCDE';
             }
-            return dic[index + 1];
+            const nextCombo = dic[index + 1];
+            console.log('当前多选组合:', str, '下一个组合:', nextCombo);
+            return nextCombo;
         };
-        const nowAnswerStr = window.location.search.split('ansList=')[1].split('&')[0];
-        const nowAnswerList = window.location.search.split('ansList=')[1].split('&')[0].split(',');
-        const h3List = document.querySelectorAll('.answer_list h3');
-        let finished = true;
-        for (let i = 0; i < 5; i++) {
-            if (h3List[i].className === 'cuo') {
-                finished = false;
-                if (nowAnswerList[i].length === 1) {
-                    nowAnswerList[i] = getNextChoice(nowAnswerList[i]);
-                } else {
-                    nowAnswerList[i] = getNextMultipleChoice(nowAnswerList[i]);
-                }
-                window.location.href = window.location.href.replace(nowAnswerStr, nowAnswerList.join(','));
-                break;
+        
+        // 获取当前答案列表 - 新页面格式处理
+        let nowAnswerStr, nowAnswerList;
+        if (window.location.search.includes('ansList=')) {
+            nowAnswerStr = window.location.search.split('ansList=')[1].split('&')[0];
+            nowAnswerList = nowAnswerStr.split(',');
+        } else {
+            // 新页面格式，从隐藏字段获取问题列表
+            const quesListInput = document.querySelector('input[name="ques_list"]');
+            if (quesListInput && quesListInput.value) {
+                const quesList = quesListInput.value.split(',');
+                nowAnswerList = ['A', 'A', 'A', 'A', 'A'].slice(0, quesList.length); // 默认全选A
+                nowAnswerStr = nowAnswerList.join(',');
+            } else {
+                // 如果找不到ques_list，默认5个题目
+                nowAnswerList = ['A', 'A', 'A', 'A', 'A'];
+                nowAnswerStr = nowAnswerList.join(',');
             }
         }
+        
+        // 检测错误题目 - 新页面格式
+        const errorQuestions = document.querySelectorAll('.cuoti p span');
+        let finished = true;
+        
+        console.log('错误题目数量:', errorQuestions.length);
+        console.log('当前答案列表:', nowAnswerList);
+        
+        // 获取已尝试的答案记录
+        const triedAnswersObject = getTriedAnswersObject();
+        const courseId = window.location.search.split('course_id=')[1]?.split('&')[0] || 
+                        document.querySelector('input[name="course_id"]')?.value;
+        const paperId = window.location.search.split('paper_id=')[1]?.split('&')[0] || 
+                       document.querySelector('input[name="paper_id"]')?.value;
+        const examId = courseId + '_' + paperId;
+        
+        if (errorQuestions.length > 0) {
+            finished = false;
+            // 新页面格式：错误题目显示在.cuoti中
+            const quesListInput = document.querySelector('input[name="ques_list"]');
+            const quesList = quesListInput && quesListInput.value ? quesListInput.value.split(',') : [];
+            const questionTexts = Array.from(document.querySelectorAll('.kaoshi dt')).map(dt => dt.textContent.trim());
+            
+            console.log('问题列表:', quesList);
+            console.log('问题文本:', questionTexts);
+            
+            // 初始化已尝试答案记录
+            if (!triedAnswersObject[examId]) {
+                triedAnswersObject[examId] = {};
+            }
+            
+            for (let i = 0; i < errorQuestions.length; i++) {
+                const errorText = errorQuestions[i].textContent.trim();
+                console.log('错误题目:', errorText);
+                
+                const questionIndex = questionTexts.findIndex(text => text.includes(errorText));
+                
+                if (questionIndex !== -1) {
+                    const questionText = questionTexts[questionIndex];
+                    console.log('找到错误题目索引:', questionIndex, '题目:', questionText, '当前答案:', nowAnswerList[questionIndex]);
+                    
+                    // 初始化该题目的已尝试记录
+                    if (!triedAnswersObject[examId][questionText]) {
+                        triedAnswersObject[examId][questionText] = [];
+                    }
+                    
+                    // 记录当前尝试的答案
+                    if (!triedAnswersObject[examId][questionText].includes(nowAnswerList[questionIndex])) {
+                        triedAnswersObject[examId][questionText].push(nowAnswerList[questionIndex]);
+                    }
+                    
+                    if (nowAnswerList[questionIndex].length === 1) {
+                        nowAnswerList[questionIndex] = getNextUntriedChoice(
+                            nowAnswerList[questionIndex], 
+                            triedAnswersObject[examId][questionText],
+                            questionText
+                        );
+                    } else {
+                        nowAnswerList[questionIndex] = getNextMultipleChoice(nowAnswerList[questionIndex]);
+                    }
+                    
+                    console.log('更新后的答案:', nowAnswerList[questionIndex], '已尝试选项:', triedAnswersObject[examId][questionText]);
+                    break;
+                } else {
+                    console.log('未找到匹配的错误题目');
+                }
+            }
+            
+            // 保存已尝试答案记录
+            saveTriedAnswersObject(triedAnswersObject);
+            
+            // 重新提交
+            console.log('准备重新提交，新答案列表:', nowAnswerList);
+            const form = document.querySelector('form[name="form1"]') || document.querySelector('form');
+            if (form && (form.action.includes('examDo.jsp') || form.action.includes('exam'))) {
+                console.log('通过表单提交');
+                form.submit();
+            } else {
+                // 回退到旧方法
+                if (window.location.search) {
+                    console.log('通过URL修改提交');
+                    window.location.href = window.location.href.replace(nowAnswerStr, nowAnswerList.join(','));
+                } else {
+                    console.log('无法提交，重新加载页面');
+                    // 如果无法修改URL，尝试重新加载
+                    location.reload();
+                }
+            }
+        }
+        
         if (finished) {
-            const examId = window.location.search.split('course_id=')[1].split('&')[0] + '_' + window.location.search.split('paper_id=')[1].split('&')[0];
-            const answerObject = getAnswerObject();
-            answerObject[examId] = nowAnswerList;
-            localStorage.setItem('right_answer_obj', JSON.stringify(answerObject));
-            history.go(-1);
+            console.log('所有题目回答正确，保存答案并返回');
+            const courseId = window.location.search.split('course_id=')[1]?.split('&')[0] || 
+                            document.querySelector('input[name="course_id"]')?.value;
+            const paperId = window.location.search.split('paper_id=')[1]?.split('&')[0] || 
+                           document.querySelector('input[name="paper_id"]')?.value;
+            
+            if (courseId && paperId) {
+                const examId = courseId + '_' + paperId;
+                const answerObject = getAnswerObject();
+                answerObject[examId] = nowAnswerList;
+                localStorage.setItem('right_answer_obj', JSON.stringify(answerObject));
+                console.log('保存正确答案:', nowAnswerList, '考试ID:', examId);
+                history.go(-1);
+            } else {
+                console.log('无法获取课程ID或试卷ID');
+            }
         }
         return;
     }
     // 考试页面填写初始答案和正确答案,并提交
-    if (window.location.pathname.includes('exam')) {
-        const examId = window.location.search.split('course_id=')[1].split('&')[0] + '_' + window.location.search.split('paper_id=')[1].split('&')[0];
+    if (window.location.pathname.includes('exam') || document.querySelector('.kaoshi')) {
+        const courseId = window.location.search.split('course_id=')[1]?.split('&')[0] || 
+                        document.querySelector('input[name="course_id"]')?.value;
+        const paperId = window.location.search.split('paper_id=')[1]?.split('&')[0] || 
+                       document.querySelector('input[name="paper_id"]')?.value;
+        const examId = courseId + '_' + paperId;
         const answerObject = getAnswerObject();
+        
+        // 清除已尝试答案记录（开始新的考试会话）
+        const triedAnswersObject = getTriedAnswersObject();
+        if (triedAnswersObject[examId]) {
+            console.log('清除已尝试答案记录，开始新的考试会话');
+            delete triedAnswersObject[examId];
+            saveTriedAnswersObject(triedAnswersObject);
+        }
         const autoSelectAnswer = answerArray => {
-            const liList = document.querySelectorAll('.exam_list li');
-            for (let i = 0; i < 5; i++) {
-                const LiChildren = liList[i].children;
+            const questionItems = document.querySelectorAll('.kaoshi dl');
+            for (let i = 0; i < questionItems.length; i++) {
+                const answerOptions = questionItems[i].querySelectorAll('dd p input[type="radio"]');
                 const answer = answerArray[i];
-                for (let i = 0; i < LiChildren.length; i++) {
-                    if (LiChildren[i].nodeName === 'P') {
-                        const input = LiChildren[i].children[0];
-                        if (answer.includes(input.value)) {
-                            input.dispatchEvent(new MouseEvent('click'));
-                            if (LiChildren[0].innerText.includes('单选')) { break; }
-                        }
+                
+                for (let j = 0; j < answerOptions.length; j++) {
+                    const input = answerOptions[j];
+                    if (answer.includes(input.value)) {
+                        input.checked = true;
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
                     }
                 }
             }
@@ -120,12 +262,32 @@
         examSkipButton.style.right = '150px';
 
         examSkipButton.addEventListener('click', () => {
-            // 多选全选, 单选选A
-            autoSelectAnswer(['ABCDE', 'ABCDE', 'ABCDE', 'ABCDE', 'ABCDE']);
-            document.querySelector('#tjkj').dispatchEvent(new MouseEvent('click'));
+            // 获取题目数量
+            const questionCount = document.querySelectorAll('.kaoshi dl').length;
+            const defaultAnswers = Array(questionCount).fill('A'); // 单选默认选A
+            
+            autoSelectAnswer(defaultAnswers);
+            
+            // 尝试提交表单
+            const submitBtn = document.querySelector('#tjkj') || 
+                             document.querySelector('input[type="button"][onClick*="doSubmit"]') ||
+                             document.querySelector('input[type="button"][value*="提交"]');
+            
+            if (submitBtn) {
+                submitBtn.dispatchEvent(new MouseEvent('click'));
+            } else {
+                // 直接调用表单提交函数
+                if (typeof doSubmit === 'function') {
+                    doSubmit();
+                } else {
+                    const form = document.querySelector('form[name="form1"]') || document.querySelector('form');
+                    if (form) form.submit();
+                }
+            }
         });
 
-        document.querySelector('.main').appendChild(examSkipButton);
+        const contentElement = document.querySelector('.content') || document.querySelector('.r_box') || document.body;
+        contentElement.appendChild(examSkipButton);
 
         if (localStorage.getItem('script_auto_exam') === 'true') {
             examSkipButton.dispatchEvent(new MouseEvent('click'));
